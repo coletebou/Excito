@@ -55,7 +55,7 @@ c     Edit as appropriate.
       common /alphaModel/ a1, a2, f1, f2
       data version / 'Version:09, Date:5_13_09'/ 
 
-      pause 'test'
+c      pause test
       write (*,'(2x,''********************************'')')
       write (*,'(2x,''RSPM - Spectral Matching Program'')')
       write (*,'( 2x,''Program Version: '',a25)') version

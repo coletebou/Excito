@@ -1,13 +1,15 @@
-# Ignore compiler project files
-*.atools
-*.amake
-*.amake.bk
+# Compiled binary
+RSPMatch99_Sub Files/rspmatch
+
+# Raw downloaded data
+elcentro_raw.dat
+
+# RSPMatch output files
+matched.acc
+matched.rsp
+unmatched.rsp
 *.o
-*.app
-mrweprefs.r
-project.r
-absoft_run_env.sh
 
-
-# Ignore Mac OS X system files
-.DS_Store
+# Old run files (now in examples/)
+/master.inp
+/run.inp
