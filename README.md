@@ -268,3 +268,51 @@ The `iModel` parameter selects the wavelet adjustment function:
 ## License
 
 Original code by N. Abrahamson, copyright 1993. Modified by Linda Al Atik, UC Berkeley, 2009.
+
+## Known Limitations & Seed Selection
+
+### The sample data caveat
+
+The included El Centro 1940 record is a classic textbook earthquake but a **poor seed choice** for a steeply-falling ASCE 7 design spectrum. After scaling to match the low-frequency plateau, El Centro has 5-10x more energy than the target above 3 Hz. While the algorithm does subtract energy at high frequencies (the matched record is visibly lower amplitude than the original), it cannot remove enough to track a steeply falling target.
+
+With the included sample data, expect:
+- **0.2-2.5 Hz: near-perfect match** (< 1% misfit)
+- **3-15 Hz: significant overshoot** (the matched spectrum flatlines around 0.4g instead of following the target down)
+
+This is a seed selection problem, not an algorithm problem.
+
+### How the algorithm handles overshoot
+
+RSPMatch adds signed adjustment wavelets to the acceleration record. These wavelets can be positive or negative — the algorithm can both increase and decrease spectral ordinates. However, convergence at a given frequency is limited by the `maxDeltaR` parameter in `Match.F` (set to 0.1, meaning each iteration can adjust a spectral ordinate by at most 10% of its current value). When the seed overshoots the target by 500-1000%, this cap makes convergence extremely slow.
+
+Additionally, wavelets added at low frequencies generate spectral leakage at higher frequencies, creating a "floor" that the algorithm struggles to push below.
+
+### Choosing a good seed record
+
+For production work, seed selection is critical. The algorithm converges quickly and accurately when the seed spectrum sits **at or below** the target at most frequencies.
+
+**Guidelines:**
+- Pick records whose spectral shape naturally resembles your target — less work for the matching algorithm
+- For steeply-falling targets (ASCE 7, NRC Reg Guide 1.60), use seeds with less high-frequency energy: larger magnitude events, longer source-to-site distances, or soft-soil recordings
+- Avoid near-fault records with broadband flat spectra (like El Centro) when your target drops off steeply past the plateau
+- Use 3-7 different seed records per project — different earthquakes stress different parts of a structure even with the same spectrum
+
+### PEER NGA Database
+
+The standard source for seed records is the PEER NGA (Pacific Earthquake Engineering Research Center) ground motion database:
+
+- **NGA-West2** (https://ngawest2.berkeley.edu/) — ~8,600 records from 334 shallow crustal events (M3.4-7.9). Use for active tectonic regions (western US).
+- **NGA-East** — 27,000+ records from Central and Eastern North America. Use for stable continental regions (eastern US).
+
+The web tool lets you filter by magnitude, distance, Vs30 (site class), and fault type. For seed selection, filter for records with spectral shapes that naturally resemble your target spectrum.
+
+### Multi-pass matching
+
+For difficult seed-target combinations, a multi-pass approach with progressively widening frequency bands improves convergence. See the `multipass-experiments` branch for scripts and examples. Typical strategy:
+
+1. Pass 1: Match low frequencies only (0.2-1.5 Hz)
+2. Pass 2: Widen to 0.2-3 Hz
+3. Pass 3: Widen to 0.2-7 Hz
+4. Pass 4-5: Full band (0.2-15 Hz) with lower gamma for polish
+
+This is the approach used by commercial tools like RspMatchEDT, which automates the multi-pass staging and parameter selection.
