@@ -42,6 +42,16 @@ gfortran -ffixed-line-length-none -std=legacy -o rspmatch \
 
 You will see warnings about array bounds and deleted Fortran features. These are expected for legacy Fortran 77 code using assumed-size arrays and are harmless at runtime.
 
+### Runtime floating-point messages
+
+When running, you may see:
+
+```
+Note: The following floating-point exceptions are signalling: IEEE_DIVIDE_BY_ZERO IEEE_UNDERFLOW_FLAG IEEE_DENORMAL
+```
+
+This is normal. It means the numerical routines encountered division by zero, extremely small numbers, or denormalized floats during matrix operations (SVD, eigenvalue checks). The program handles all of these internally with eigenvalue cutoffs and convergence checks. The results are correct. To suppress the message, add `-ffpe-summary=none` to the compile command.
+
 ## Running
 
 RSPMatch reads from stdin. It expects the path to a **master input file** which lists run configurations:
@@ -200,6 +210,30 @@ Initial Solution    AveMisfit  MaxMisfit  ...
 | Max frequency | 15 Hz | 25 Hz | High frequencies are hardest to match |
 | Group size | 10-15 | 20-30 | Smaller = finer corrections |
 | Tolerance | 0.01 | 0.05 | Stops early if reached |
+
+## Verifying Results
+
+The `.rsp` output files contain a table comparing **Target** vs **Computed** spectral acceleration at each frequency. Open `matched.rsp` and look at these columns:
+
+```
+     Freq     Damping   Target   Computed   Initial  Randomized  tPeak
+    0.2000    0.0500    1.2000    1.1999    0.0710    1.2000   44.0600
+    1.0000    0.0500    1.2000    1.2000    1.2000    1.2000   13.1500
+```
+
+**How to read it:**
+- **Target** = what you asked for (from your `.tgt` file)
+- **Computed** = what the matched record actually produces
+- **Initial** = what the original (scaled) record had before matching
+
+**The match is good when** Computed ≈ Target (within a few percent). Perfect matches show 0.0% difference.
+
+**The match will be poor when** the Initial spectrum is much higher than the Target. RSPMatch works by adding wavelets — it can boost energy at frequencies where the record is too weak, but it cannot effectively remove energy where the record is too strong. If you see large mismatches at high frequencies, it usually means your seed record has too much high-frequency content relative to the target.
+
+**Choosing a good seed record:**
+- Pick a record whose spectrum is **at or below** the target at most frequencies
+- Records from similar site conditions (soil type, distance, magnitude) work best
+- If the initial spectrum is 2-3x above the target at many frequencies, the matching will struggle
 
 ## Source Files
 
