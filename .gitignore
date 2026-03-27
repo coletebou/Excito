@@ -1,15 +1,10 @@
 # Compiled binary
 RSPMatch99_Sub Files/rspmatch
 
-# Raw downloaded data
-elcentro_raw.dat
-
-# RSPMatch output files
-matched.acc
-matched.rsp
-unmatched.rsp
+# Output files
+output/*.acc
+output/*.rsp
 *.o
 
-# Old run files (now in examples/)
-/master.inp
-/run.inp
+# Downloaded raw data
+elcentro_raw.dat

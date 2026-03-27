@@ -128,23 +128,21 @@ acc1  acc2  acc3  ...
 
 ## Sample Data
 
-The `examples/` directory contains ready-to-run test data:
+The `input/` directory contains ready-to-run test data:
 
 | File | Description |
 |------|-------------|
-| `examples/master.inp` | Master input (1 run) |
-| `examples/run.inp` | Parameters: 30 iterations, model 7, 0.1-25 Hz, 5% damping |
-| `examples/target.tgt` | ASCE 7-22 design spectrum (Site Class D, Ss=1.5g, S1=0.6g) |
-| `examples/elcentro.acc` | El Centro 1940 NS component (2688 pts, dt=0.02s) |
+| `input/master.inp` | Master input (1 run) |
+| `input/run.inp` | Parameters: 30 iterations, model 7, 0.1-25 Hz, 5% damping |
+| `input/target.tgt` | ASCE 7-22 design spectrum (Site Class D, Ss=1.5g, S1=0.6g) |
+| `input/elcentro.acc` | El Centro 1940 NS component (2688 pts, dt=0.02s) |
 
 ### Run the example
 
-```bash
-cd "RSPMatch99_Sub Files"
-echo ../examples/master.inp | ./rspmatch
-```
+cd input
+echo 'master.inp' | "../RSPMatch99_Sub Files/rspmatch"
 
-Output files will be created in the `RSPMatch99_Sub Files/` directory:
+Output files will be created in the `output/` directory:
 - `matched.acc` — spectrum-matched accelerogram
 - `matched.rsp` — response spectrum of matched record
 - `unmatched.rsp` — response spectrum of original record

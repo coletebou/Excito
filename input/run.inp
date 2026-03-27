@@ -16,6 +16,6 @@
 1.0
 target.tgt
 elcentro.acc
-matched.acc
-matched.rsp
-unmatched.rsp
+../output/matched.acc
+../output/matched.rsp
+../output/unmatched.rsp
