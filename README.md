@@ -316,3 +316,66 @@ For difficult seed-target combinations, a multi-pass approach with progressively
 4. Pass 4-5: Full band (0.2-15 Hz) with lower gamma for polish
 
 This is the approach used by commercial tools like RspMatchEDT, which automates the multi-pass staging and parameter selection.
+
+
+### How to download seed records from PEER NGA
+
+1. **Create a free account** at https://ngawest2.berkeley.edu/
+2. **Search for records** using the search tool:
+   - Set magnitude range (e.g. 6.0-7.5)
+   - Set distance range (e.g. 10-50 km)
+   - Set Vs30 range to match your site class (e.g. 180-360 m/s for Site Class D)
+   - Optionally filter by fault type (strike-slip, reverse, etc.)
+3. **Download** — select records and download as `.AT2` files (text format)
+
+#### Converting PEER AT2 format to RSPMatch format
+
+PEER `.AT2` files look like this:
+
+```
+PEER NGA STRONG MOTION DATABASE RECORD
+Imperial Valley-06, 10/15/1979, El Centro Array #12, 140
+ACCELERATION TIME SERIES IN UNITS OF G
+NPTS=  7814, DT= .0050 SEC,
+  3.654112E-04  3.647600E-04  3.640805E-04  3.633667E-04  3.626163E-04
+  ...
+```
+
+RSPMatch `.acc` files need this format:
+
+```
+Title line
+nPts  dt  nAdded
+acc1  acc2  acc3  ...
+```
+
+To convert, extract `NPTS` and `DT` from line 4 of the AT2 file, write them as line 2, and copy all the acceleration values after line 4. A simple conversion script is included in the repo:
+
+```bash
+# Convert PEER AT2 to RSPMatch acc format
+./convert_at2.sh record.AT2 record.acc
+```
+
+Or manually:
+
+```bash
+# Line 1: title (from AT2 line 2)
+sed -n '2p' record.AT2 > record.acc
+
+# Line 2: npts dt nadded (parsed from AT2 line 4)
+NPTS=$(sed -n '4p' record.AT2 | grep -oP 'NPTS=\s*\K[0-9]+')
+DT=$(sed -n '4p' record.AT2 | grep -oP 'DT=\s*\K[.0-9]+')
+echo "$NPTS $DT 0" >> record.acc
+
+# Remaining lines: acceleration data
+tail -n +5 record.AT2 >> record.acc
+```
+
+Then place the `.acc` file in `input/` and update line 18 of your `run.inp` to point to it.
+
+#### Tips for picking good seeds
+
+- **Look at the spectral shape**, not just magnitude/distance. PEER shows response spectra for each record — pick ones whose shape drops off similarly to your target above the plateau.
+- **Pick records that sit below the target.** The algorithm boosts energy efficiently but struggles to remove large amounts. A seed at 50-80% of the target across all frequencies is ideal.
+- **Avoid broadband flat spectra** (like near-fault records) when your target drops steeply. Choose records from moderate distances or soft-soil sites that naturally roll off at high frequencies.
+- **Download multiple records.** Building codes typically require 3-7 matched time histories per analysis.
