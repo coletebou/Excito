@@ -133,30 +133,73 @@ The `input/` directory contains ready-to-run test data:
 | File | Description |
 |------|-------------|
 | `input/master.inp` | Master input (1 run) |
-| `input/run.inp` | Parameters: 30 iterations, model 7, 0.1-25 Hz, 5% damping |
+| `input/run.inp` | Parameters: 80 iterations, model 7, 0.2-15 Hz, 5% damping |
 | `input/target.tgt` | ASCE 7-22 design spectrum (Site Class D, Ss=1.5g, S1=0.6g) |
 | `input/elcentro.acc` | El Centro 1940 NS component (2688 pts, dt=0.02s) |
 
 ### Run the example
 
-cd input
-echo 'master.inp' | "../RSPMatch99_Sub Files/rspmatch"
+The easiest way to run is with the included `run.sh` script:
 
-Output files will be created in the `output/` directory:
+```bash
+./run.sh
+```
+
+This creates a timestamped output directory (e.g. `output/run-03_27_26_1542/`) containing:
 - `matched.acc` — spectrum-matched accelerogram
 - `matched.rsp` — response spectrum of matched record
 - `unmatched.rsp` — response spectrum of original record
+- `run.inp` — copy of the parameters used
+- `target.tgt` — copy of the target spectrum used
+- `elcentro.acc` — copy of the input accelerogram used
+- `log.txt` — full program output
+
+Each run gets its own directory, so previous results are never overwritten.
+
+### Using different inputs
+
+By default, `run.sh` uses `input/run.inp`. To use a different configuration:
+
+```bash
+# Create a new run file
+cp input/run.inp input/run_tight.inp
+# Edit parameters as needed, then run:
+./run.sh run_tight.inp
+```
+
+All run files and data files (`.tgt`, `.acc`) should be placed in the `input/` directory.
+
+### Running manually (without the script)
+
+You can also run RSPMatch directly from the `input/` directory:
+
+```bash
+cd input
+echo master.inp | "../RSPMatch99_Sub Files/rspmatch"
+```
+
+Output files will be written to the current directory.
 
 ### Expected output
 
-The program will iterate 30 times, showing convergence of average misfit:
+The program iterates, showing convergence of average and maximum misfit:
 
 ```
 Initial Solution    AveMisfit  MaxMisfit  ...
                       2.0586     6.7770
 ...
-     30 full set      2.2855    12.0583   25.013  0.050  0.523
+     80 full set      1.4801    10.2103   15.008  0.050  0.540
 ```
+
+### Tips for better convergence
+
+| Parameter | Conservative | Aggressive | Notes |
+|-----------|-------------|------------|-------|
+| Max iterations | 80-100 | 30 | More = better match, slower |
+| Gamma (damping) | 0.3-0.4 | 0.7-1.0 | Lower = steadier convergence |
+| Max frequency | 15 Hz | 25 Hz | High frequencies are hardest to match |
+| Group size | 10-15 | 20-30 | Smaller = finer corrections |
+| Tolerance | 0.01 | 0.05 | Stops early if reached |
 
 ## Source Files
 

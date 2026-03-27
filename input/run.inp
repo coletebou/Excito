@@ -1,21 +1,21 @@
-30
-0.02
-0.5
+80
+0.01
+0.4
 7
-1.0 1.0 0.1 25.0
+1.0 1.0 0.1 15.0
 1 1.0
 1
 1.0e-5
-20
-25.0
-0.1 25.0 4
+10
+15.0
+0.1 15.0 4
 0
 0 0.0
-0.1 25.0
+0.2 15.0
 1
 1.0
 target.tgt
 elcentro.acc
-../output/matched.acc
-../output/matched.rsp
-../output/unmatched.rsp
+matched.acc
+matched.rsp
+unmatched.rsp

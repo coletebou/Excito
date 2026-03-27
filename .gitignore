@@ -1,10 +1,11 @@
 # Compiled binary
 RSPMatch99_Sub Files/rspmatch
 
-# Output files
-output/*.acc
-output/*.rsp
-*.o
+# Output runs (each run creates a timestamped directory)
+output/run-*/
+output/matched.*
+output/unmatched.*
 
-# Downloaded raw data
+# Temp files
+*.o
 elcentro_raw.dat
