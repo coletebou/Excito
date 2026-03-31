@@ -1,8 +1,24 @@
-# Excito — Response Spectrum Matching Program
+# Excito — Seismic Analysis Toolkit
 
 *Latin: excito — "to shake, to stir up"*
 
-Excito is a modernized fork of RSPMatch, a time-domain spectral matching tool for earthquake ground motion records originally developed by **N. Abrahamson (1993)** with modifications by **Linda Al Atik (UC Berkeley, 2009)**.
+Excito is a unified suite of seismic analysis tools for earthquake engineering, starting with spectral matching and expanding to cover the full ground motion workflow.
+
+## Roadmap
+
+| Module | Description | Status |
+|--------|-------------|--------|
+| `excito match` | Time-domain spectral matching | Available (RSPMatch core) |
+| `excito site` | 1D equivalent-linear site response | Planned |
+| `excito select` | Ground motion record selection (PEER NGA) | Planned |
+| `excito hazard` | Seismic hazard disaggregation / UHS | Planned |
+| `excito convert` | Format converters (AT2, CSV, COSMOS) | Planned |
+
+---
+
+## Spectral Matching (`excito match`)
+
+Currently the core of Excito. A modernized fork of RSPMatch, a time-domain spectral matching tool for earthquake ground motion records originally developed by **N. Abrahamson (1993)** with modifications by **Linda Al Atik (UC Berkeley, 2009)**.
 
 It modifies a recorded or synthetic earthquake accelerogram so that its response spectrum matches a target design spectrum, using wavelet-based adjustment functions that preserve the non-stationary character of the original record.
 
