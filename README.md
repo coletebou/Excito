@@ -9,7 +9,7 @@ Excito is a unified suite of seismic analysis tools for earthquake engineering, 
 | Module | Description | Status |
 |--------|-------------|--------|
 | `excito match` | Time-domain spectral matching | Available (RSPMatch core) |
-| `excito site` | 1D equivalent-linear site response | Planned |
+| `excito site` | 1D equivalent-linear site response (based on [Strata](https://github.com/arkottke/strata)/[pyStrata](https://github.com/arkottke/pystrata)) | Planned |
 | `excito select` | Ground motion record selection (PEER NGA) | Planned |
 | `excito hazard` | Seismic hazard disaggregation / UHS | Planned |
 | `excito convert` | Format converters (AT2, CSV, COSMOS) | Planned |
