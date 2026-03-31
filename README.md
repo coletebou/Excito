@@ -1,6 +1,8 @@
-# RSPMatch — Response Spectrum Matching Program
+# Excito — Response Spectrum Matching Program
 
-RSPMatch is a time-domain spectral matching tool for earthquake ground motion records, developed by **N. Abrahamson (1993)** with modifications by **Linda Al Atik (UC Berkeley, 2009)**.
+*Latin: excito — "to shake, to stir up"*
+
+Excito is a modernized fork of RSPMatch, a time-domain spectral matching tool for earthquake ground motion records originally developed by **N. Abrahamson (1993)** with modifications by **Linda Al Atik (UC Berkeley, 2009)**.
 
 It modifies a recorded or synthetic earthquake accelerogram so that its response spectrum matches a target design spectrum, using wavelet-based adjustment functions that preserve the non-stationary character of the original record.
 
