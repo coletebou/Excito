@@ -56,6 +56,74 @@ def parse_rsp(path):
     return rows
 
 
+def parse_acc(path):
+    """Return (dt, [acc...]) from an RSPMatch .acc file."""
+    with open(path) as f:
+        lines = f.readlines()
+    hdr = lines[1].split()
+    npts, dt = int(hdr[0]), float(hdr[1])
+    acc = []
+    for line in lines[2:]:
+        for v in line.split():
+            try:
+                acc.append(float(v))
+            except ValueError:
+                pass
+    return dt, acc[:npts]
+
+
+def decimate(acc, dt, max_buckets=800):
+    """Peak-preserving downsample for plotting: keep min & max per time bucket."""
+    n = len(acc)
+    if n <= max_buckets * 2:
+        return ([round(i * dt, 4) for i in range(n)],
+                [round(v, 5) for v in acc])
+    step = n / max_buckets
+    t, a = [], []
+    for b in range(max_buckets):
+        lo, hi = int(b * step), int((b + 1) * step)
+        if hi <= lo:
+            hi = lo + 1
+        seg = range(lo, min(hi, n))
+        imin = min(seg, key=lambda i: acc[i])
+        imax = max(seg, key=lambda i: acc[i])
+        for idx in sorted((imin, imax)):
+            t.append(round(idx * dt, 4))
+            a.append(round(acc[idx], 5))
+    return t, a
+
+
+def acc_data(run_dir):
+    """Return downsampled matched + seed time histories (with true PGA) for a run."""
+    out = {}
+    mp = os.path.join(run_dir, "matched.acc")
+    if os.path.exists(mp):
+        dt, acc = parse_acc(mp)
+        if acc:
+            t, a = decimate(acc, dt)
+            out["matched"] = {"name": "matched.acc", "dt": dt,
+                              "pga": max(abs(v) for v in acc), "t": t, "a": a}
+    seed = None
+    for name in ("elcentro.acc", "ferndale.acc", "holtville.acc",
+                 "treasure_island.acc", "seed.acc", "input.acc"):
+        p = os.path.join(run_dir, name)
+        if os.path.exists(p):
+            seed = p
+            break
+    if seed is None:
+        for f in os.listdir(run_dir):
+            if f.endswith(".acc") and f != "matched.acc":
+                seed = os.path.join(run_dir, f)
+                break
+    if seed:
+        dt, acc = parse_acc(seed)
+        if acc:
+            t, a = decimate(acc, dt)
+            out["seed"] = {"name": os.path.basename(seed), "dt": dt,
+                           "pga": max(abs(v) for v in acc), "t": t, "a": a}
+    return out
+
+
 def read_inp_summary(name):
     """Read target (line 17) and accelerogram (line 18) from a run .inp file."""
     path = os.path.join(INPUT_DIR, name)
@@ -98,11 +166,13 @@ def run_match(inp_name):
     )
     log = proc.stdout + ("\n" + proc.stderr if proc.stderr else "")
     run_dir = newest_run()
-    rows, stats = [], {}
+    rows, stats, acc = [], {}, {}
     if run_dir:
-        rsp = os.path.join(OUTPUT_DIR, run_dir, "matched.rsp")
+        rdir = os.path.join(OUTPUT_DIR, run_dir)
+        rsp = os.path.join(rdir, "matched.rsp")
         if os.path.exists(rsp):
             rows = parse_rsp(rsp)
+            acc = acc_data(rdir)
             if rows:
                 misfits = [abs(r["computed"] - r["target"]) / r["target"] * 100
                            for r in rows if r["target"] > 0]
@@ -111,7 +181,7 @@ def run_match(inp_name):
                     "max_misfit": max(misfits) if misfits else 0,
                     "n_freq": len(rows),
                 }
-    return (proc.returncode == 0 and bool(rows), log, rows, run_dir, stats)
+    return (proc.returncode == 0 and bool(rows), log, rows, run_dir, stats, acc)
 
 
 # ---------------------------------------------------------------------------
@@ -142,12 +212,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             run = (qs.get("run") or [None])[0]
             if not run:
                 run = newest_run()
-            rows = []
+            rows, acc = [], {}
             if run:
-                rsp = os.path.join(OUTPUT_DIR, run, "matched.rsp")
+                rdir = os.path.join(OUTPUT_DIR, run)
+                rsp = os.path.join(rdir, "matched.rsp")
                 if os.path.exists(rsp):
                     rows = parse_rsp(rsp)
-            self._send(200, json.dumps({"run": run, "rows": rows}))
+                    acc = acc_data(rdir)
+            self._send(200, json.dumps({"run": run, "rows": rows, "acc": acc}))
         else:
             self._send(404, json.dumps({"error": "not found"}))
 
@@ -163,10 +235,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not os.path.exists(os.path.join(INPUT_DIR, inp)):
                 self._send(404, json.dumps({"error": f"{inp} not found"}))
                 return
-            ok, log, rows, run_dir, stats = run_match(inp)
+            ok, log, rows, run_dir, stats, acc = run_match(inp)
             self._send(200, json.dumps({
                 "ok": ok, "log": log, "rows": rows,
-                "run": run_dir, "stats": stats,
+                "run": run_dir, "stats": stats, "acc": acc,
             }))
         else:
             self._send(404, json.dumps({"error": "not found"}))
@@ -224,6 +296,7 @@ PAGE = r"""<!DOCTYPE html>
   .legend .t::before { background:var(--target); }
   .legend .c::before { background:var(--matched); }
   .legend .i::before { background:var(--initial); border-top:2px dashed var(--initial); height:0; }
+  .legend .i2::before { background:var(--initial); }
   pre { background:#010409; border:1px solid var(--line); border-radius:8px;
         padding:14px; font-size:12px; color:#9da7b3; max-height:320px; overflow:auto;
         white-space:pre-wrap; margin-top:22px; }
@@ -256,6 +329,11 @@ PAGE = r"""<!DOCTYPE html>
       <span class="t">Target</span><span class="c">Matched</span><span class="i">Initial (seed)</span>
     </div>
     <div id="plot"><div class="empty">Pick a configuration and click Run, or load a previous run.</div></div>
+    <div id="thwrap" style="display:none">
+      <h2 style="margin-top:26px">Time History</h2>
+      <div class="legend" id="thlegend"></div>
+      <div id="th"></div>
+    </div>
     <pre id="log" style="display:none"></pre>
   </div>
 </main>
@@ -298,6 +376,11 @@ function plot(rows) {
   const ticks=(min,max)=>{ const t=[]; let p=Math.floor(lx(min));
     for(;p<=Math.ceil(lx(max));p++){[1,2,5].forEach(d=>{const v=d*10**p; if(v>=min&&v<=max)t.push(v);});} return t; };
   let g='';
+  // green "good match" band: contiguous frequencies within 5% of target
+  const good=rows.filter(r=>r.target>0 && Math.abs(r.computed-r.target)/r.target<0.05).map(r=>r.freq);
+  if(good.length){ const gx1=X(Math.min(...good)), gx2=X(Math.max(...good));
+    g+=`<rect x="${gx1.toFixed(1)}" y="${m.t}" width="${(gx2-gx1).toFixed(1)}" height="${H-m.b-m.t}" fill="#3fb950" opacity=".08"/>`;
+    g+=`<text x="${((gx1+gx2)/2).toFixed(1)}" y="${m.t+14}" fill="#3fb950" font-size="10" text-anchor="middle" opacity=".75">good match ${Math.min(...good)}–${Math.max(...good)} Hz</text>`; }
   ticks(xmin,xmax).forEach(v=>{ const x=X(v);
     g+=`<line x1="${x}" y1="${m.t}" x2="${x}" y2="${H-m.b}" stroke="#30363d" stroke-width=".5"/>`;
     g+=`<text x="${x}" y="${H-m.b+18}" fill="#8b949e" font-size="11" text-anchor="middle">${v>=1?v:v}</text>`; });
@@ -314,6 +397,38 @@ function plot(rows) {
     ${rows.filter(r=>r.computed>0).map(r=>`<circle cx="${X(r.freq).toFixed(1)}" cy="${Y(r.computed).toFixed(1)}" r="3" fill="#f0533e"/>`).join('')}
   </svg>`;
   $('#plot').innerHTML=svg; $('#legend').style.display='flex';
+}
+
+// --- linear time-history plotter (seed vs matched) -------------------------
+function plotTH(acc) {
+  const box=$('#th'), wrap=$('#thwrap');
+  if(!acc || (!acc.seed && !acc.matched)){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  const series=[acc.seed,acc.matched].filter(Boolean);
+  const W=820,H=300,m={l:64,r:20,t:18,b:46};
+  const tmax=Math.max(...series.map(s=>s.t[s.t.length-1]||0));
+  const amax=Math.max(...series.map(s=>Math.max(...s.a.map(Math.abs))))||0.1;
+  const X=v=>m.l+v/tmax*(W-m.l-m.r);
+  const Y=v=>m.t+(H-m.t-m.b)/2 - v/amax*((H-m.t-m.b)/2);
+  const line=(s,color,w)=>`<polyline fill="none" stroke="${color}" stroke-width="${w}" opacity=".75" points="${
+    s.t.map((t,i)=>`${X(t).toFixed(1)},${Y(s.a[i]).toFixed(1)}`).join(' ')}"/>`;
+  let g='';
+  for(let k=0;k<=4;k++){ const tv=tmax*k/4, x=X(tv);
+    g+=`<line x1="${x}" y1="${m.t}" x2="${x}" y2="${H-m.b}" stroke="#30363d" stroke-width=".5"/>`;
+    g+=`<text x="${x}" y="${H-m.b+18}" fill="#8b949e" font-size="11" text-anchor="middle">${tv.toFixed(0)}</text>`; }
+  [-amax,0,amax].forEach(v=>{ const y=Y(v);
+    g+=`<line x1="${m.l}" y1="${y.toFixed(1)}" x2="${W-m.r}" y2="${y.toFixed(1)}" stroke="#30363d" stroke-width=".5"/>`;
+    g+=`<text x="${m.l-8}" y="${(y+4).toFixed(1)}" fill="#8b949e" font-size="11" text-anchor="end">${v.toFixed(2)}</text>`; });
+  const pgaTxt=`PGA seed ${acc.seed?acc.seed.pga.toFixed(3):'—'}g  |  PGA matched ${acc.matched?acc.matched.pga.toFixed(3):'—'}g`;
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}
+    <text x="${W/2}" y="${H-8}" fill="#8b949e" font-size="12" text-anchor="middle">Time (seconds)</text>
+    <text x="16" y="${H/2}" fill="#8b949e" font-size="12" text-anchor="middle" transform="rotate(-90 16 ${H/2})">Acceleration (g)</text>
+    ${acc.seed?line(acc.seed,'#4493f8',0.7):''}
+    ${acc.matched?line(acc.matched,'#f0533e',0.8):''}
+    <text x="${m.l+6}" y="${H-m.b-6}" fill="#8b949e" font-size="11">${pgaTxt}</text>
+  </svg>`;
+  $('#thlegend').innerHTML = (acc.seed?`<span class="i2">Original (${acc.seed.name})</span>`:'')+
+                             (acc.matched?'<span class="c">Matched</span>':'');
 }
 function showStats(s) {
   if (!s || s.n_freq===undefined) { $('#stats').style.display='none'; return; }
@@ -333,7 +448,7 @@ $('#run').addEventListener('click', async () => {
       body:JSON.stringify({inp:$('#inp').value})});
     const d=await r.json();
     $('#log').style.display='block'; $('#log').textContent=d.log||'(no output)';
-    plot(d.rows); showStats(d.stats||{});
+    plot(d.rows); plotTH(d.acc); showStats(d.stats||{});
     $('#sub').textContent=d.run?('output → '+d.run):'done';
     loadInputs();
   } catch(e){ $('#log').style.display='block'; $('#log').textContent='Error: '+e; }
@@ -343,7 +458,7 @@ $('#run').addEventListener('click', async () => {
 $('#runs').addEventListener('change', async e => {
   if (!e.target.value) return;
   const r=await fetch('/api/results?run='+encodeURIComponent(e.target.value));
-  const d=await r.json(); plot(d.rows);
+  const d=await r.json(); plot(d.rows); plotTH(d.acc);
   $('#sub').textContent='viewing → '+d.run;
   const ms=d.rows.filter(x=>x.target>0).map(x=>Math.abs(x.computed-x.target)/x.target*100);
   showStats({avg_misfit:ms.reduce((a,b)=>a+b,0)/ms.length, max_misfit:Math.max(...ms), n_freq:d.rows.length});
