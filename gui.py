@@ -165,7 +165,15 @@ def run_match(inp_name):
         cwd=REPO, capture_output=True, text=True,
     )
     log = proc.stdout + ("\n" + proc.stderr if proc.stderr else "")
-    run_dir = newest_run()
+    # Read the actual output dir from run.sh's own output. Do NOT guess via
+    # newest_run(): run.sh names dirs to minute resolution, so two runs in the
+    # same minute reuse one dir and "newest" can return a stale neighbour.
+    run_dir = None
+    for line in proc.stdout.splitlines():
+        if "Output directory:" in line or line.strip().startswith("Output:"):
+            run_dir = os.path.basename(line.split(":", 1)[1].strip())
+    if run_dir is None:
+        run_dir = newest_run()
     rows, stats, acc = [], {}, {}
     if run_dir:
         rdir = os.path.join(OUTPUT_DIR, run_dir)

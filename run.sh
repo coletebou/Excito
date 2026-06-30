@@ -16,8 +16,9 @@ if [ ! -f "$BINARY" ]; then
     exit 1
 fi
 
-# Create timestamped output directory
-TIMESTAMP=$(date +"%m_%d_%y_%H%M")
+# Create timestamped output directory (seconds resolution so back-to-back
+# runs in the same minute don't collide into one directory)
+TIMESTAMP=$(date +"%m_%d_%y_%H%M%S")
 RUN_DIR="$REPO_DIR/output/run-${TIMESTAMP}"
 mkdir -p "$RUN_DIR"
 
